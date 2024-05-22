@@ -1,113 +1,162 @@
-import Image from "next/image";
+"use client";
+import Input from "@mui/material/Input";
+import InputAdornment from "@mui/material/InputAdornment";
+import Typography from "@mui/material/Typography";
+import SearchIcon from "@mui/icons-material/Search";
+import Box from "@mui/material/Box";
+import ToDoList from "./components/list";
+import { TODOS_t, PRIORITY_t } from "./utils/types";
+import { createContext, useEffect, useState } from "react";
+import { Button, Icon, IconButton, TextField } from "@mui/material";
+import { formatDate, msToTime } from "./utils/date";
+import AddTodosButton from "./components/addTodosButton";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
+
+const PRIORITY: PRIORITY_t = {
+  high: "#FF0000",
+  medium: "#FF8F00",
+  low: "#CFD200",
+};
 
 export default function Home() {
+  const [todos, setTodos] = useState<TODOS_t[]>([]);
+  const [dones, setDones] = useState<TODOS_t[]>([]);
+  const [allTask, setAllTask] = useState<TODOS_t[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [refresh, setRefresh] = useState<boolean>(true);
+  const [filterStr, setFilterStr] = useState<string>("");
+
+  const getData = () => {
+    setIsLoading(true);
+    fetch(`/api/todos?timestamp=${new Date().getTime()}`, {
+      // query URL without using browser cache
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+      method: "GET",
+    })
+      .then((data) => data.json())
+      .then((data) => {
+        if (data != null) {
+          let res: TODOS_t[] = data.data.map((x: any) => {
+            return {
+              ...x,
+              due_date_at: x.due_date,
+              due_date: formatDate(x.due_date),
+              due_date_desc: msToTime(
+                Date.now() - new Date(x.due_date).getTime(),
+              ),
+              created_at: formatDate(x.created_at),
+              updated_at: formatDate(x.updated_at),
+            };
+          });
+          setAllTask(res);
+          setTodos(res.filter((x: TODOS_t) => x.is_done === false));
+          setDones(res.filter((x: TODOS_t) => x.is_done === true));
+          setIsLoading(false);
+        }
+      });
+  };
+  useEffect(() => {
+    setRefresh(true);
+  }, []);
+
+  useEffect(() => {
+    if (refresh) {
+      getData();
+      setRefresh(false);
+    }
+  }, [refresh]);
+
+  const handleFilter = () => {
+    setTodos(
+      todos.filter(
+        (x: TODOS_t) =>
+          x.title.includes(filterStr) || x.description?.includes(filterStr),
+      ),
+    );
+    setDones(
+      dones.filter(
+        (x: TODOS_t) =>
+          x.title.includes(filterStr) || x.description?.includes(filterStr),
+      ),
+    );
+  };
+
+  const handleClearFilter = () => {
+    setTodos(allTask.filter((x: TODOS_t) => x.is_done === false));
+    setDones(allTask.filter((x: TODOS_t) => x.is_done === true));
+    setFilterStr("");
+  };
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+    <>
+      <Typography variant="h4" className=" font-bold py-4">
+        To Do List
+      </Typography>
+      <Box className=" w-7/12 flex flex-col gap-4">
+        <Box className="flex flex-row gap-2">
+          <TextField
+            id="search-bar"
+            label="Search"
+            className="w-full"
+            placeholder="Search titles or descriptions..."
+            helperText={`Found ${todos.length + dones.length} tasks from ${
+              allTask.length
+            } tasks`}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end" className="gap-1">
+                  <Button
+                    onClick={handleClearFilter}
+                    startIcon={<SearchOffIcon />}
+                    variant="contained"
+                    color="warning"
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleFilter}
+                  >
+                    Search
+                  </Button>
+                </InputAdornment>
+              ),
+            }}
+            onChange={(e) => setFilterStr(e.target.value)}
+            value={filterStr}
+          />
+          <AddTodosButton
+            priorities={PRIORITY}
+            allTask={allTask}
+            setRefresh={setRefresh}
+          />
+        </Box>
+        <ToDoList
+          priorities={PRIORITY}
+          title={"Pending"}
+          todos={todos}
+          isLoading={isLoading}
+          setRefresh={setRefresh}
+          allTask={allTask}
         />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+        <ToDoList
+          priorities={PRIORITY}
+          title={"Done"}
+          todos={dones}
+          isLoading={isLoading}
+          setRefresh={setRefresh}
+          allTask={allTask}
+        />
+      </Box>
+    </>
   );
 }
