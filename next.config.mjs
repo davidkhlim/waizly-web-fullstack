@@ -9,6 +9,10 @@ const nextConfig = {
         pathname: '/weather/**',
       },
     ],
+  }, logging: {
+    fetches: {
+      fullUrl: true,
+    },
   },
 };
 
