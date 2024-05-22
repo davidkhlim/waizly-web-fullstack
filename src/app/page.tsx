@@ -11,6 +11,7 @@ import { Button, Icon, IconButton, TextField } from "@mui/material";
 import { formatDate, msToTime } from "./utils/date";
 import AddTodosButton from "./components/addTodosButton";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
+import WeatherInfo from "./components/weatherInfo";
 
 const PRIORITY: PRIORITY_t = {
   high: "#FF0000",
@@ -25,6 +26,47 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [refresh, setRefresh] = useState<boolean>(true);
   const [filterStr, setFilterStr] = useState<string>("");
+  const [weatherInfo, setWeatherInfo] = useState({
+    location: {
+      name: "Ciputat",
+      region: "West Java",
+      country: "Indonesia",
+      lat: -6.94,
+      lon: 107.69,
+      tz_id: "Asia/Jakarta",
+      localtime_epoch: 1716375988,
+      localtime: "2024-05-22 18:06",
+    },
+    current: {
+      last_updated_epoch: 1716375600,
+      last_updated: "2024-05-22 18:00",
+      temp_c: 24.1,
+      temp_f: 75.4,
+      is_day: 0,
+      condition: {
+        text: "Patchy light rain",
+        icon: "//cdn.weatherapi.com/weather/64x64/night/293.png",
+        code: 1180,
+      },
+      wind_mph: 2.2,
+      wind_kph: 3.6,
+      wind_degree: 26,
+      wind_dir: "NNE",
+      pressure_mb: 1009,
+      pressure_in: 29.79,
+      precip_mm: 1.08,
+      precip_in: 0.04,
+      humidity: 84,
+      cloud: 86,
+      feelslike_c: 26.2,
+      feelslike_f: 79.2,
+      vis_km: 9,
+      vis_miles: 5,
+      uv: 1,
+      gust_mph: 6.7,
+      gust_kph: 10.8,
+    },
+  });
 
   const getData = () => {
     setIsLoading(true);
@@ -59,8 +101,24 @@ export default function Home() {
         }
       });
   };
+
   useEffect(() => {
     setRefresh(true);
+
+    if ("geolocation" in navigator) {
+      // Retrieve latitude & longitude coordinates from `navigator.geolocation` Web API
+      navigator.geolocation.getCurrentPosition(({ coords }) => {
+        const { latitude, longitude } = coords;
+        console.log(process.env.NEXT_PUBLIC_OPEN_WEATHER_KEY);
+        fetch(
+          `http://api.weatherapi.com/v1/current.json?q=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}`,
+        )
+          .then((data) => data.json())
+          .then((data) => {
+            setWeatherInfo(data);
+          });
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -69,6 +127,10 @@ export default function Home() {
       setRefresh(false);
     }
   }, [refresh]);
+
+  useEffect(() => {
+    console.log(weatherInfo);
+  }, [weatherInfo]);
 
   const handleFilter = () => {
     setTodos(
@@ -95,6 +157,7 @@ export default function Home() {
       <Typography variant="h4" className=" font-bold py-4">
         To Do List
       </Typography>
+      {weatherInfo && <WeatherInfo data={weatherInfo}></WeatherInfo>}
       <Box className=" w-7/12 flex flex-col gap-4">
         <Box className="flex flex-row gap-2">
           <TextField
